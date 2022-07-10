@@ -26,8 +26,7 @@ struct ContentView: View {
             .ignoresSafeArea()
             VStack {
                 Text("Guess the Flag")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundColor(.white)
+                    .modifier(TitleModifier())
                 VStack(spacing: 15) {
                     
                     VStack {
@@ -43,10 +42,7 @@ struct ContentView: View {
                             Button {
                                 flagTapped(number)
                             } label: {
-                                Image(countries[number])
-                                    .renderingMode(.original)
-                                    .clipShape(Capsule())
-                                    .shadow(radius: 5)
+                                FlagImage(name: countries[number])
                             }
                             .alert(scoreTitle, isPresented: $showingScore) {
                                 Button("Continue", action: askQuestion)
@@ -59,18 +55,12 @@ struct ContentView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-                .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .padding()
+                .modifier(BackgroundFlagModifier())
                 
                 Text("Level: \(level)")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundColor(.white)
+                    .modifier(TitleModifier())
                 Text("Your score is \(score)")
-                    .font(.largeTitle.weight(.bold))
-                    .foregroundColor(.white)
+                    .modifier(TitleModifier())
             }
         }
     }
@@ -107,6 +97,37 @@ struct ContentView: View {
         level = 0
         needResetGame = false
         shuffle()
+    }
+}
+
+struct FlagImage: View {
+    
+    var name: String
+    
+    var body: some View {
+        Image(name)
+            .renderingMode(.original)
+            .clipShape(Capsule())
+            .shadow(radius: 5)
+    }
+}
+
+struct BackgroundFlagModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 20)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .padding()
+    }
+}
+
+struct TitleModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.largeTitle.weight(.bold))
+            .foregroundColor(.white)
     }
 }
 
