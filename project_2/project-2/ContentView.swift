@@ -16,6 +16,8 @@ struct ContentView: View {
     @State private var score = 0
     @State private var needResetGame = false
     @State private var level = 0
+    @State private var animationFlag = 0.0
+    @State private var opacity = 1.0
     
     var body: some View {
         ZStack {
@@ -42,7 +44,14 @@ struct ContentView: View {
                             Button {
                                 flagTapped(number)
                             } label: {
-                                FlagImage(name: countries[number])
+                                if correctAnswer == number {
+                                    FlagImage(name: countries[number])
+                                        .rotation3DEffect(.degrees(animationFlag), axis: (x: 0, y: 1, z: 0))
+                                } else {
+                                    FlagImage(name: countries[number])
+                                        .opacity(opacity)
+                                }
+                                
                             }
                             .alert(scoreTitle, isPresented: $showingScore) {
                                 Button("Continue", action: askQuestion)
@@ -76,6 +85,11 @@ struct ContentView: View {
         
         showingScore = true
         level += 1
+        
+        withAnimation{
+            opacity = 0.25
+            animationFlag += 360
+        }
     }
     
     func askQuestion() {
@@ -84,7 +98,8 @@ struct ContentView: View {
         } else {
             shuffle()
         }
-        
+        opacity = 1
+        animationFlag = 0
     }
     
     func shuffle() {
@@ -131,10 +146,81 @@ struct TitleModifier: ViewModifier {
     }
 }
 
+struct CornerRotateModifier: ViewModifier {
+    let amount: Double
+    let anchor: UnitPoint
+    
+    func body(content: Content) -> some View {
+        content
+            .rotationEffect(.degrees(amount), anchor: anchor)
+            .clipped()
+    }
+}
+
+extension AnyTransition {
+    static var pivot: AnyTransition {
+        .modifier(
+            active: CornerRotateModifier(amount: -180, anchor: .topTrailing),
+            identity: CornerRotateModifier(amount: 0, anchor: .topLeading)
+        )
+    }
+}
+
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
             .previewDevice(PreviewDevice(rawValue: "iPhone 13"))
             .previewDisplayName("iPhone 13")
+    }
+}
+
+/// An animatable modifier that is used for observing animations for a given animatable value.
+struct AnimationCompletionObserverModifier<Value>: AnimatableModifier where Value: VectorArithmetic {
+    
+    /// While animating, SwiftUI changes the old input value to the new target value using this property. This value is set to the old value until the animation completes.
+    var animatableData: Value {
+        didSet {
+            notifyCompletionIfFinished()
+        }
+    }
+    
+    /// The target value for which we're observing. This value is directly set once the animation starts. During animation, `animatableData` will hold the oldValue and is only updated to the target value once the animation completes.
+    private var targetValue: Value
+    
+    /// The completion callback which is called once the animation completes.
+    private var completion: () -> Void
+    
+    init(observedValue: Value, completion: @escaping () -> Void) {
+        self.completion = completion
+        self.animatableData = observedValue
+        targetValue = observedValue
+    }
+    
+    /// Verifies whether the current animation is finished and calls the completion callback if true.
+    private func notifyCompletionIfFinished() {
+        guard animatableData == targetValue else { return }
+        
+        /// Dispatching is needed to take the next runloop for the completion callback.
+        /// This prevents errors like "Modifying state during view update, this will cause undefined behavior."
+        DispatchQueue.main.async {
+            self.completion()
+        }
+    }
+    
+    func body(content: Content) -> some View {
+        /// We're not really modifying the view so we can directly return the original input value.
+        return content
+    }
+}
+
+extension View {
+    
+    /// Calls the completion handler whenever an animation on the given value completes.
+    /// - Parameters:
+    ///   - value: The value to observe for animations.
+    ///   - completion: The completion callback to call once the animation completes.
+    /// - Returns: A modified `View` instance with the observer attached.
+    func onAnimationCompleted<Value: VectorArithmetic>(for value: Value, completion: @escaping () -> Void) -> ModifiedContent<Self, AnimationCompletionObserverModifier<Value>> {
+        return modifier(AnimationCompletionObserverModifier(observedValue: value, completion: completion))
     }
 }
