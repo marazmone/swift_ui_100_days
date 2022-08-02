@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+let ITEMS_KEY = "items_key"
+
 @main
 struct project_7App: App {
     var body: some Scene {
